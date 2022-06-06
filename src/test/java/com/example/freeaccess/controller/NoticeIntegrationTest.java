@@ -8,23 +8,26 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.RequestBuilder;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 
 @SpringBootTest
@@ -56,19 +59,43 @@ class NoticeIntegrationTest {
     private MockHttpServletResponse performPost(NoticeDTO expected) throws Exception {
         String json = objectMapper.writeValueAsString(expected);
         RequestBuilder request = MockMvcRequestBuilders.post(PATH).contentType(MediaType.APPLICATION_JSON).content(json);
+        return this.mockMvc.perform(request).andReturn().getResponse();
+    }
 
-        MockHttpServletResponse response = mockMvc.perform(request).andReturn().getResponse();
-        return response;
+    private MockHttpServletResponse performDelete(Integer id) throws Exception {
+        MockHttpServletRequestBuilder request = MockMvcRequestBuilders.delete(PATH + "/" + id);
+        return this.mockMvc.perform(request).andReturn().getResponse();
+    }
+
+    private MockHttpServletResponse performGetById(Integer id) throws Exception {
+        MockHttpServletRequestBuilder request = MockMvcRequestBuilders.get(PATH + "/" + id);
+        return this.mockMvc.perform(request).andReturn().getResponse();
+    }
+
+    private MockHttpServletResponse performGetAllPageable() throws Exception {
+        MockHttpServletRequestBuilder request = MockMvcRequestBuilders.get(PATH);
+        return this.mockMvc.perform(request).andReturn().getResponse();
+    }
+
+    private MockHttpServletResponse performPut(NoticeDTO expected) throws Exception {
+        String json = objectMapper.writeValueAsString(expected);
+        MockHttpServletRequestBuilder request = MockMvcRequestBuilders.put(PATH + "/" + expected.getId()).contentType(MediaType.APPLICATION_JSON).content(json);
+        return this.mockMvc.perform(request).andReturn().getResponse();
+    }
+
+    private NoticeDTO saveANoticeSuccessfully(NoticeDTO expected) throws Exception {
+        MockHttpServletResponse response = this.performPost(expected);
+        NoticeDTO returned = objectMapper.readValue(response.getContentAsString(), NoticeDTO.class);
+
+        Assertions.assertEquals(HttpStatus.CREATED.value(), response.getStatus());
+        Assertions.assertNotNull(returned.getId());
+        Assertions.assertEquals(expected, returned);
+        return returned;
     }
 
     @Test
     public void shouldSaveNoticeSuccessfully() throws Exception {
-        MockHttpServletResponse response = performPost(expectedNoticeDTO);
-        NoticeDTO returned = objectMapper.readValue(response.getContentAsString(), NoticeDTO.class);
-
-        Assertions.assertEquals(201, response.getStatus());
-        Assertions.assertNotNull(returned.getId());
-        Assertions.assertEquals(expectedNoticeDTO, returned);
+        saveANoticeSuccessfully(this.expectedNoticeDTO);
     }
 
     @Test
@@ -76,22 +103,63 @@ class NoticeIntegrationTest {
         Mockito.doNothing().when(sendPushNotification).execute(Mockito.any(NoticeDTO.class));
         Mockito.doNothing().when(pushNotificationClient).send(Mockito.any(NoticeDTO.class));
 
-        performPost(expectedNoticeDTO);
+        this.performPost(this.expectedNoticeDTO);
         Mockito.verify(sendPushNotification).execute(Mockito.any(NoticeDTO.class));
     }
 
     @Test
     public void shouldNotSaveANoticeWithoutRequiredFieldsAndReturnBadRequest() throws Exception {
-        NoticeDTO noticeDTO = new NoticeDTO();
+        expectedNoticeDTO = new NoticeDTO();
 
-        MockHttpServletResponse response = performPost(noticeDTO);
-        List<String> exceptions = objectMapper.readValue(response.getContentAsString(), List.class);
+        MockHttpServletResponse response = this.performPost(this.expectedNoticeDTO);
+        List<String> exceptions = this.objectMapper.readValue(response.getContentAsString(), List.class);
 
-        System.out.println(exceptions);
-
-        Assertions.assertEquals(400, response.getStatus());
+        Assertions.assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatus());
         Assertions.assertTrue(exceptions.stream().anyMatch(exception -> exception.contains("description")));
         Assertions.assertTrue(exceptions.stream().anyMatch(exception -> exception.contains("title")));
 
     }
+
+    @Test
+    public void shouldDeleteANoticeById() throws Exception {
+        NoticeDTO returned = saveANoticeSuccessfully(this.expectedNoticeDTO);
+        MockHttpServletResponse mockHttpServletResponse = this.performDelete(returned.getId());
+        Assertions.assertEquals(HttpStatus.OK.value(), mockHttpServletResponse.getStatus());
+    }
+
+    @Test
+    public void shouldFindANoticeById() throws Exception {
+        NoticeDTO returned = saveANoticeSuccessfully(this.expectedNoticeDTO);
+
+        MockHttpServletResponse response = this.performGetById(returned.getId());
+        returned = objectMapper.readValue(response.getContentAsString(), NoticeDTO.class);
+
+        Assertions.assertEquals(HttpStatus.OK.value(), response.getStatus());
+        Assertions.assertEquals(returned, this.expectedNoticeDTO);
+    }
+
+    @Test
+    public void shouldFindAllPageable() throws Exception {
+        saveANoticeSuccessfully(this.expectedNoticeDTO);
+        saveANoticeSuccessfully(this.expectedNoticeDTO);
+        saveANoticeSuccessfully(this.expectedNoticeDTO);
+
+        MockHttpServletResponse response = this.performGetAllPageable();
+        Map page = this.objectMapper.readValue(response.getContentAsString(), Map.class);
+
+        Assertions.assertEquals(page.get("totalElements"), 3);
+        Assertions.assertEquals(page.get("totalPages"), 1);
+    }
+
+    @Test
+    public void shouldUpdateNoticeSuccessfully() throws Exception {
+        NoticeDTO expected = this.saveANoticeSuccessfully(this.expectedNoticeDTO);
+        expected.setDescription("Nova description");
+        MockHttpServletResponse response = this.performPut(expected);
+        NoticeDTO returned = objectMapper.readValue(response.getContentAsString(), NoticeDTO.class);
+
+        Assertions.assertEquals(HttpStatus.OK.value(), response.getStatus());
+        Assertions.assertEquals(expected, returned);
+    }
+
 }

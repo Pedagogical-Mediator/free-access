@@ -2,9 +2,12 @@ package com.example.freeaccess.controller;
 
 
 import com.example.freeaccess.domain.notice.NoticeDTO;
-import com.example.freeaccess.service.notice.SaveNotice;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.freeaccess.service.notice.*;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -18,11 +21,22 @@ import java.util.List;
 @RequestMapping("/school/notice")
 public class NoticeController {
 
-   @Autowired
-   private SaveNotice save;
+    private final SaveNotice save;
+    private final DeleteNotice delete;
+    private final FindNoticeById findById;
+    private final FindAllNotices findAllNotices;
+    private final UpdateNotice updateNotice;
+
+    public NoticeController(SaveNotice save, DeleteNotice delete, FindNoticeById findById, FindAllNotices findAllNotices, UpdateNotice updateNotice) {
+        this.save = save;
+        this.delete = delete;
+        this.findById = findById;
+        this.findAllNotices = findAllNotices;
+        this.updateNotice = updateNotice;
+    }
 
     @PostMapping
-    public ResponseEntity<NoticeDTO> save (@Valid @RequestBody NoticeDTO noticeDTO) {
+    public ResponseEntity<NoticeDTO> save(@Valid @RequestBody NoticeDTO noticeDTO) {
         noticeDTO = this.save.execute(noticeDTO);
 
         URI uri = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(noticeDTO.getId()).toUri();
@@ -40,48 +54,27 @@ public class NoticeController {
         return ResponseEntity.badRequest().body(exception.getMessage());
     }
 
+    @GetMapping(value = "/{id}")
+    public ResponseEntity<NoticeDTO> findById(@PathVariable Integer id) {
+        return ResponseEntity.ok().body(this.findById.execute(id));
+    }
 
-//    @GetMapping(value = "/{id}")
-//    public ResponseEntity<AvisoDTO> findById(@PathVariable Integer id){
-//        Aviso aviso = avisoService.findById(id);
-//        AvisoDTO avisoDTO = modelMapper.modelMapper().map(aviso, AvisoDTO.class);
-//
-//        return ResponseEntity.ok().body(avisoDTO);
-//    }
-//
-//    @GetMapping
-//    public ResponseEntity<Page<AvisoDTO>> findPage(@RequestParam(value="page", defaultValue="0") Integer page, @RequestParam(value="linesPerPage", defaultValue="10") Integer linesPerPage, @RequestParam(value="orderBy", defaultValue="dataDeCriacao") String orderBy, @RequestParam(value="direction", defaultValue="DESC") String direction) {
-//
-//        Page<Aviso> pagina = avisoService.findPage(page, linesPerPage, orderBy, direction);
-//
-//        List<AvisoDTO> dtos = pagina.stream().map(aviso -> modelMapper.modelMapper().map(aviso, AvisoDTO.class))
-//                .collect(Collectors.toList());
-//
-//        PageRequest pageRequest = PageRequest.of(page, linesPerPage, Sort.Direction.valueOf(direction), orderBy);
-//
-//
-//        Page<AvisoDTO> paginaDTO = new PageImpl<>(dtos, pageRequest, dtos.size());
-//
-//        return ResponseEntity.ok().body(paginaDTO);
-//    }
-//
-//    @PutMapping(value = "/{id}")
-//    public ResponseEntity<AvisoDTO> update (@PathVariable Integer id, @RequestBody AvisoDTO avisoDTO) throws CampoObrigatorio, TamanhoDeCampoExcedente {
-//
-//        avisoDTO.setId(id);
-//
-//        AvisoDTO avisoRetornado = modelMapper.modelMapper().map(avisoService.update(modelMapper.modelMapper().map(avisoDTO, Aviso.class)), AvisoDTO.class);
-//
-//        return ResponseEntity.ok().body(avisoRetornado);
-//    }
-//
-//    @DeleteMapping(value = "/{id}")
-//    public ResponseEntity<Void> delete (@PathVariable Integer id){
-//
-//        avisoService.delete(id);
-//
-//        return ResponseEntity.ok().build();
-//    }
+    @GetMapping
+    public ResponseEntity<Page<NoticeDTO>> findPage(@PageableDefault(sort = "creationDate", page = 0, size = 10, direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok().body(this.findAllNotices.execute(pageable));
+    }
+
+    @PutMapping(value = "/{id}")
+    public ResponseEntity<NoticeDTO> update(@PathVariable Integer id, @RequestBody NoticeDTO noticeDTO) {
+        noticeDTO.setId(id);
+        return ResponseEntity.ok().body(this.updateNotice.execute(noticeDTO));
+    }
+
+    @DeleteMapping(value = "/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Integer id) {
+        this.delete.execute(id);
+        return ResponseEntity.ok().build();
+    }
 //
 //    @GetMapping(value = "/todos")
 //    public ResponseEntity<List<AvisoDTO>> findAll() {
