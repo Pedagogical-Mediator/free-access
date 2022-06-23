@@ -2,7 +2,7 @@ package com.example.freeaccess.controller;
 
 import com.example.freeaccess.domain.notice.NoticeDTO;
 import com.example.freeaccess.domain.notice.Url;
-import com.example.freeaccess.service.notice.PushNotificationClient;
+import com.example.freeaccess.client.push_service.PushNotificationClient;
 import com.example.freeaccess.service.notice.SendPushNotification;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Assertions;
@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;

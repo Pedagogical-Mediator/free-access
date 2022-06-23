@@ -1,6 +1,5 @@
-package com.example.freeaccess.service.notice;
+package com.example.freeaccess.client.push_service;
 
-import com.example.freeaccess.domain.notice.NoticeDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 
@@ -8,6 +7,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 public interface PushNotificationClient {
 
     @PostMapping("/push-notification/send")
-    void send(NoticeDTO noticeDTO);
+    void send(PushNotificationRequest request);
 
 }

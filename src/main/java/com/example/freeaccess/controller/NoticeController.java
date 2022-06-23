@@ -75,14 +75,4 @@ public class NoticeController {
         this.delete.execute(id);
         return ResponseEntity.ok().build();
     }
-//
-//    @GetMapping(value = "/todos")
-//    public ResponseEntity<List<AvisoDTO>> findAll() {
-//        List<Aviso> avisos = avisoService.findAll();
-//
-//        List<AvisoDTO> avisosDTO = avisos.stream().map(aviso -> modelMapper.modelMapper().map(aviso, AvisoDTO.class))
-//                .collect(Collectors.toList());
-//
-//        return ResponseEntity.ok().body(avisosDTO);
-//    }
 }
